@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 )
@@ -36,8 +37,48 @@ func getFileSize(filePath string) int64 {
 	return fileInfo.Size()
 }
 
+func uploadHandler(w http.ResponseWriter, r *http.Request) {
+	// Parse the form data to retrieve the file
+	err := r.ParseMultipartForm(10 << 20) // Limit the size of the file to 10 MB
+	if err != nil {
+		http.Error(w, "Unable to parse form: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// Retrieve the file from the form data
+	file, _, err := r.FormFile("file")
+	if err != nil {
+		http.Error(w, "Unable to retrieve file: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+	defer file.Close()
+
+	// Create a new file on the server
+	dst, err := os.Create("./uploads/uploaded_file")
+	if err != nil {
+		http.Error(w, "Unable to create file: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer dst.Close()
+
+	// Copy the uploaded file to the new file
+	if _, err := io.Copy(dst, file); err != nil {
+		http.Error(w, "Unable to save file: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Respond to the client
+	fmt.Fprintln(w, "File uploaded successfully!")
+}
+
 func main() {
 	// Serve files at the "/download" endpoint
+
+	os.MkdirAll("./uploads", os.ModePerm)
+
+	// Serve the upload handler at the "/upload" endpoint
+	http.HandleFunc("/upload", uploadHandler)
+
 	http.HandleFunc("/download", fileDownloadHandler)
 
 	// Start the HTTP server on port 8080
