@@ -9,10 +9,10 @@ import (
 
 func fileDownloadHandler(w http.ResponseWriter, r *http.Request) {
 	// Define the file path
-	filePath := "./test/test.png"
+	filePath := "./test/sample.txt"
 
 	// Check if the file exists
-	file, err := os.Open(filePath)
+	file, err := os.Open(filePath) 
 	if err != nil {
 		http.Error(w, "File not found.", http.StatusNotFound)
 		return
@@ -20,7 +20,7 @@ func fileDownloadHandler(w http.ResponseWriter, r *http.Request) {
 	defer file.Close()
 
 	// Set headers to prompt the download
-	w.Header().Set("Content-Disposition", "attachment; filename=test.png")
+	w.Header().Set("Content-Disposition", "attachment; filename=sample.txt")
 	w.Header().Set("Content-Type", "application/octet-stream")
 	w.Header().Set("Content-Length", fmt.Sprintf("%d", getFileSize(filePath)))
 
