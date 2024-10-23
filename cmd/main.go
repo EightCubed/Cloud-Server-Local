@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
+	"github.com/rs/cors"
 	"go.uber.org/zap"
 )
 
@@ -23,9 +24,16 @@ func main() {
 	r.HandleFunc("/createDirectory", handlers.CreateFolderHandler(logger)).Methods("POST")
 	r.HandleFunc("/showTreeDirectory", handlers.ListFileDirectoryHandler(logger)).Methods("GET")
 
+	c := cors.New(cors.Options{
+		AllowedOrigins:   []string{"http://localhost:5173"}, // Specify the allowed origin
+		AllowCredentials: false,
+		AllowedMethods:   []string{"GET", "POST", "OPTIONS"},
+		AllowedHeaders:   []string{"Content-Type", "Authorization"},
+	})
+
 	// Start the HTTP server on port 8080
 	logger.Info("Server started at http://localhost:8080")
-	err = http.ListenAndServe(":8080", r)
+	err = http.ListenAndServe(":8080", c.Handler(r))
 	if err != nil {
 		logger.Fatal("Error starting server:", zap.Error(err))
 	}

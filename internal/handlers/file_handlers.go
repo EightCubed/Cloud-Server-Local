@@ -99,8 +99,12 @@ func ListFileDirectoryHandler(logger *zap.Logger) http.HandlerFunc {
 		logger.Info("Listing directory")
 		treeStructure := listFilesByDepthMain("./uploads/", 10)
 
+		var resp models.ResponseDataFileDirectory
+		resp.Data = *treeStructure
+		resp.Message = "Successful list"
+
 		w.Header().Set("Content-Type", "application/json")
-		err := json.NewEncoder(w).Encode(treeStructure)
+		err := json.NewEncoder(w).Encode(resp)
 		if err != nil {
 			http.Error(w, "Failed to encode JSON: "+err.Error(), http.StatusInternalServerError)
 			return

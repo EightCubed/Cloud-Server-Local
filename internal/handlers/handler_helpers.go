@@ -13,7 +13,10 @@ func listFilesByDepthMain(fileName string, maxDepth int) *models.Node {
 		fileName = "./uploads/"
 	}
 	fileTree := &models.Node{
-		Data:     "Uploads",
+		File: models.File{
+			FileName: "Uploads",
+			FileType: models.FileTypeFolder,
+		},
 		Adjacent: []*models.Node{},
 	}
 
@@ -43,8 +46,16 @@ func listFilesByDepthRecursive(pathName string, maxDepth, currentDepth int) []*m
 			continue
 		}
 
+		fileType := models.FileTypeFile
+		if isDir {
+			fileType = models.FileTypeFolder
+		}
+
 		newNode := &models.Node{
-			Data:     fileName,
+			File: models.File{
+				FileName: fileName,
+				FileType: fileType,
+			},
 			Adjacent: []*models.Node{},
 		}
 		fileTree = append(fileTree, newNode)
@@ -65,7 +76,7 @@ func PrintSpaces(spaces int) {
 
 func printFileTree(node *models.Node, depth int) {
 	PrintSpaces(depth)
-	fmt.Println(node.Data)
+	fmt.Println(node.File)
 
 	// Print all adjacent nodes (children)
 	for _, child := range node.Adjacent {
