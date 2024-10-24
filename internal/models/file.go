@@ -8,9 +8,10 @@ const (
 )
 
 type Node struct {
-	File     File    `json:"file"`
-	Adjacent []*Node `json:"adjacent"`
-	FilePath string  `json:"filepath"`
+	File            File    `json:"file"`
+	Children        []*Node `json:"children"`
+	FilePath        string  `json:"filepath"`
+	ParentDirectory string  `json:"parentdirectory"`
 }
 
 type File struct {

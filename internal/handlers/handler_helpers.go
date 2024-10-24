@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/fs"
 	"sort"
+	"strings"
 
 	"cloud-server/internal/models"
 	"cloud-server/internal/services"
@@ -18,17 +19,24 @@ func listFilesByDepthMain(fileName string, maxDepth int, logger *zap.Logger) *mo
 	}
 	fileTree := &models.Node{
 		File: models.File{
-			FileName:         "Uploads",
+			FileName:         fileName,
 			FileType:         models.FileTypeFolder,
 			AbsoluteFilePath: fileName,
 		},
-		Adjacent: []*models.Node{},
-		FilePath: "",
+		Children:        []*models.Node{},
+		FilePath:        fileName,
+		ParentDirectory: "",
+	}
+
+	if fileName != "" {
+		strings.Split(fileName, "/")
+		fileTree.ParentDirectory = fileName
+		fmt.Println("\n\n\n", fileName, "\n\n\n")
 	}
 
 	logger.Info("Listing files main function")
 
-	fileTree.Adjacent = listFilesByDepthRecursive(fileName, maxDepth, 0, logger)
+	fileTree.Children = listFilesByDepthRecursive(fileName, maxDepth, 0, logger)
 
 	// fmt.Println("File Tree Structure:")
 	// printFileTree(fileTree, 0)
@@ -81,12 +89,16 @@ func listFilesByDepthRecursive(pathName string, maxDepth, currentDepth int, logg
 				FileType:         fileType,
 				AbsoluteFilePath: pathName + "/" + fileName,
 			},
-			Adjacent: []*models.Node{},
+			Children: []*models.Node{},
 			FilePath: pathName,
 		}
 
+		if pathName != "" {
+			newNode.ParentDirectory = pathName
+		}
+
 		if isDir && currentDepth < maxDepth {
-			newNode.Adjacent = listFilesByDepthRecursive(pathName+"/"+fileName, maxDepth, currentDepth+1, logger)
+			newNode.Children = listFilesByDepthRecursive(pathName+"/"+fileName, maxDepth, currentDepth+1, logger)
 		}
 		fileTree = append(fileTree, newNode)
 	}
@@ -104,8 +116,8 @@ func printFileTree(node *models.Node, depth int) {
 	PrintSpaces(depth)
 	fmt.Println(node.File)
 
-	// Print all adjacent nodes (children)
-	for _, child := range node.Adjacent {
+	// Print all Children nodes (children)
+	for _, child := range node.Children {
 		printFileTree(child, depth+1)
 	}
 }
