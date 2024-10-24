@@ -5,6 +5,7 @@ type DirectoryRequestBody struct {
 }
 
 type ResponseDataFileDirectory struct {
-	Data    Node   `json:"data"`
-	Message string `json:"message"` // Corrected the typo from 'messaeg' to 'Message'
+	Data    Node     `json:"data"`
+	Path    []string `json:"path"`
+	Message string   `json:"message"` // Corrected the typo from 'messaeg' to 'Message'
 }

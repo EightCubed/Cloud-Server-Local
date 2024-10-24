@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"strings"
 
 	"go.uber.org/zap"
 
@@ -93,20 +94,67 @@ func CreateFolderHandler(logger *zap.Logger) http.HandlerFunc {
 	}
 }
 
-// ListFileDirectoryHandler lists files in the directory
+// ListFileDirectoryHandler lists files in the parent directory
 func ListFileDirectoryHandler(logger *zap.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		logger.Info("Listing directory")
-		treeStructure := listFilesByDepthMain("./uploads/", 10)
+		treeStructure := listFilesByDepthMain("./uploads/", 10, logger)
 
 		var resp models.ResponseDataFileDirectory
 		resp.Data = *treeStructure
+		resp.Path = []string{"uploads"}
 		resp.Message = "Successful list"
 
 		w.Header().Set("Content-Type", "application/json")
 		err := json.NewEncoder(w).Encode(resp)
 		if err != nil {
 			http.Error(w, "Failed to encode JSON: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+	}
+}
+
+// ListFilesByPath lists files in a particular directory
+func ListFilesByPath(logger *zap.Logger) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+
+		//Fix: Input sanitization before querying
+		pathName := r.URL.Query().Get("fileName")
+		if pathName == "" {
+			pathName = "./uploads"
+		}
+		logger.Info("Listing directory")
+		treeStructure := listFilesByDepthMain(pathName, 10, logger)
+
+		logger.Info("Query params", zap.String("pathName", pathName))
+
+		var resp models.ResponseDataFileDirectory
+		resp.Data = *treeStructure
+		resp.Path = strings.Split(strings.Replace(pathName, "./", "", -1), "/")
+		resp.Message = "Successful list"
+
+		w.Header().Set("Content-Type", "application/json")
+		err := json.NewEncoder(w).Encode(resp)
+		if err != nil {
+			http.Error(w, "Failed to encode JSON: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+		logger.Info("Response:", zap.Any("data", resp))
+	}
+}
+
+// CreateFilesAtPath creates a folder at a particular directory
+func CreateFilesAtPath(logger *zap.Logger) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var req models.FilePathRequest
+		err := json.NewDecoder(r.Body).Decode(&req)
+		if err != nil || req.FilePath == "" {
+			http.Error(w, "Invalid request body", http.StatusBadRequest)
+			return
+		}
+		err = os.Mkdir(req.FilePath, 0700)
+		if err != nil {
+			http.Error(w, "Unable to create directory: "+err.Error(), http.StatusInternalServerError)
 			return
 		}
 	}

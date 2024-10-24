@@ -2,13 +2,17 @@ package handlers
 
 import (
 	"fmt"
+	"io/fs"
+	"sort"
 
 	"cloud-server/internal/models"
 	"cloud-server/internal/services"
+
+	"go.uber.org/zap"
 )
 
 // Main function to list files by depth and build the tree structure
-func listFilesByDepthMain(fileName string, maxDepth int) *models.Node {
+func listFilesByDepthMain(fileName string, maxDepth int, logger *zap.Logger) *models.Node {
 	if fileName == "" {
 		fileName = "./uploads/"
 	}
@@ -20,7 +24,9 @@ func listFilesByDepthMain(fileName string, maxDepth int) *models.Node {
 		Adjacent: []*models.Node{},
 	}
 
-	fileTree.Adjacent = listFilesByDepthRecursive(fileName, maxDepth, 0)
+	logger.Info("Listing files main function")
+
+	fileTree.Adjacent = listFilesByDepthRecursive(fileName, maxDepth, 0, logger)
 
 	// fmt.Println("File Tree Structure:")
 	// printFileTree(fileTree, 0)
@@ -28,21 +34,37 @@ func listFilesByDepthMain(fileName string, maxDepth int) *models.Node {
 	return fileTree
 }
 
+type ByType []fs.DirEntry
+
+func (a ByType) Len() int      { return len(a) }
+func (a ByType) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
+func (a ByType) Less(i, j int) bool {
+	if a[i].IsDir() && !a[j].IsDir() {
+		return true
+	}
+	if !a[i].IsDir() && a[j].IsDir() {
+		return false
+	}
+	return a[i].Name() < a[j].Name()
+}
+
 // Recursive function to build the file tree with a depth limit
-func listFilesByDepthRecursive(pathName string, maxDepth, currentDepth int) []*models.Node {
+func listFilesByDepthRecursive(pathName string, maxDepth, currentDepth int, logger *zap.Logger) []*models.Node {
+	logger.Info("Entered listing recursive function function")
 	if currentDepth > maxDepth {
-		return nil
+		return []*models.Node{}
 	}
 
-	entries := services.ListFiles(pathName)
-	var fileTree []*models.Node
+	entries := services.ListFiles(pathName, logger)
+	sort.Sort(ByType(entries))
+	fileTree := []*models.Node{}
 
 	for _, entry := range entries {
 		fileName := entry.Name()
 		fileInfo, err := entry.Info()
 		isDir := fileInfo.IsDir()
 		if err != nil {
-			fmt.Printf("Error getting file info: %v\n", err)
+			logger.Error("Error getting file info", zap.Error(err))
 			continue
 		}
 
@@ -58,11 +80,11 @@ func listFilesByDepthRecursive(pathName string, maxDepth, currentDepth int) []*m
 			},
 			Adjacent: []*models.Node{},
 		}
-		fileTree = append(fileTree, newNode)
 
 		if isDir && currentDepth < maxDepth {
-			newNode.Adjacent = listFilesByDepthRecursive(pathName+"/"+fileName, maxDepth, currentDepth+1)
+			newNode.Adjacent = listFilesByDepthRecursive(pathName+"/"+fileName, maxDepth, currentDepth+1, logger)
 		}
+		fileTree = append(fileTree, newNode)
 	}
 
 	return fileTree

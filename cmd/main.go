@@ -23,6 +23,8 @@ func main() {
 	r.HandleFunc("/download", handlers.FileDownloadHandler(logger)).Methods("GET")
 	r.HandleFunc("/createDirectory", handlers.CreateFolderHandler(logger)).Methods("POST")
 	r.HandleFunc("/showTreeDirectory", handlers.ListFileDirectoryHandler(logger)).Methods("GET")
+	r.HandleFunc("/listFiles", handlers.ListFilesByPath(logger)).Methods("GET")
+	r.HandleFunc("/createFolder", handlers.CreateFolderHandler(logger)).Methods("POST")
 
 	c := cors.New(cors.Options{
 		AllowedOrigins:   []string{"http://localhost:5173"}, // Specify the allowed origin

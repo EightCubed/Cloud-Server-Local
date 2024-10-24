@@ -16,3 +16,7 @@ type File struct {
 	FileName string   `json:"filename"`
 	FileType FileType `json:"filetype"` // This can be FileTypeFile or FileTypeFolder
 }
+
+type FilePathRequest struct {
+	FilePath string `json:"filepath"`
+}
