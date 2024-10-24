@@ -27,7 +27,7 @@ func main() {
 	r.HandleFunc("/createFolder", handlers.CreateFolderHandler(logger)).Methods("POST")
 
 	c := cors.New(cors.Options{
-		AllowedOrigins:   []string{"http://localhost:5173"}, // Specify the allowed origin
+		AllowedOrigins:   []string{"*"},
 		AllowCredentials: false,
 		AllowedMethods:   []string{"GET", "POST", "OPTIONS"},
 		AllowedHeaders:   []string{"Content-Type", "Authorization"},
