@@ -24,6 +24,8 @@ func UploadHandler(logger *zap.Logger) http.HandlerFunc {
 			return
 		}
 
+		pathName := r.FormValue("path")
+
 		file, header, err := r.FormFile("file")
 		if err != nil {
 			http.Error(w, "Unable to retrieve file: "+err.Error(), http.StatusBadRequest)
@@ -35,7 +37,7 @@ func UploadHandler(logger *zap.Logger) http.HandlerFunc {
 		fileName := header.Filename
 
 		// Create a new file on the server
-		dst, err := os.Create("./uploads/" + fileName)
+		dst, err := os.Create("./uploads/" + pathName + "/" + fileName)
 		if err != nil {
 			http.Error(w, "Unable to create file: "+err.Error(), http.StatusInternalServerError)
 			return
@@ -86,7 +88,7 @@ func CreateFolderHandler(logger *zap.Logger) http.HandlerFunc {
 			http.Error(w, "Unable to decode body data: "+err.Error(), http.StatusBadRequest)
 			return
 		}
-		err = os.Mkdir("./uploads/"+request.Directory, 0700)
+		err = os.Mkdir(request.Directory, 0700)
 		if err != nil {
 			http.Error(w, "Unable to create directory: "+err.Error(), http.StatusInternalServerError)
 			return
@@ -98,7 +100,7 @@ func CreateFolderHandler(logger *zap.Logger) http.HandlerFunc {
 func ListFileDirectoryHandler(logger *zap.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		logger.Info("Listing directory")
-		treeStructure := listFilesByDepthMain("./uploads/", 10, logger)
+		treeStructure := listFilesByDepthMain("./uploads", 10, logger)
 
 		var resp models.ResponseDataFileDirectory
 		resp.Data = *treeStructure
@@ -130,7 +132,8 @@ func ListFilesByPath(logger *zap.Logger) http.HandlerFunc {
 
 		var resp models.ResponseDataFileDirectory
 		resp.Data = *treeStructure
-		resp.Path = strings.Split(strings.Replace(pathName, "./", "", -1), "/")
+
+		resp.Path = delete_empty(strings.Split(strings.Replace(pathName, "./", "", -1), "/"))
 		resp.Message = "Successful list"
 
 		w.Header().Set("Content-Type", "application/json")
@@ -143,19 +146,19 @@ func ListFilesByPath(logger *zap.Logger) http.HandlerFunc {
 	}
 }
 
-// CreateFilesAtPath creates a folder at a particular directory
-func CreateFilesAtPath(logger *zap.Logger) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		var req models.FilePathRequest
-		err := json.NewDecoder(r.Body).Decode(&req)
-		if err != nil || req.FilePath == "" {
-			http.Error(w, "Invalid request body", http.StatusBadRequest)
-			return
-		}
-		err = os.Mkdir(req.FilePath, 0700)
-		if err != nil {
-			http.Error(w, "Unable to create directory: "+err.Error(), http.StatusInternalServerError)
-			return
-		}
-	}
-}
+// // CreateFolderAtPath creates a folder at a particular directory
+// func CreateFolderAtPath(logger *zap.Logger) http.HandlerFunc {
+// 	return func(w http.ResponseWriter, r *http.Request) {
+// 		var req models.FilePathRequest
+// 		err := json.NewDecoder(r.Body).Decode(&req)
+// 		if err != nil || req.FilePath == "" {
+// 			http.Error(w, "Invalid request body", http.StatusBadRequest)
+// 			return
+// 		}
+// 		err = os.Mkdir(req.FilePath, 0700)
+// 		if err != nil {
+// 			http.Error(w, "Unable to create directory: "+err.Error(), http.StatusInternalServerError)
+// 			return
+// 		}
+// 	}
+// }

@@ -18,6 +18,8 @@ func main() {
 
 	r := mux.NewRouter()
 
+	fs := http.FileServer(http.Dir("./uploads"))
+
 	// Set up routes
 	r.HandleFunc("/upload", handlers.UploadHandler(logger)).Methods("POST")
 	r.HandleFunc("/download", handlers.FileDownloadHandler(logger)).Methods("GET")
@@ -25,6 +27,8 @@ func main() {
 	r.HandleFunc("/showTreeDirectory", handlers.ListFileDirectoryHandler(logger)).Methods("GET")
 	r.HandleFunc("/listFiles", handlers.ListFilesByPath(logger)).Methods("GET")
 	r.HandleFunc("/createFolder", handlers.CreateFolderHandler(logger)).Methods("POST")
+
+	r.PathPrefix("/uploads/").Handler(http.StripPrefix("/uploads/", fs))
 
 	c := cors.New(cors.Options{
 		AllowedOrigins:   []string{"*"},

@@ -8,13 +8,15 @@ const (
 )
 
 type Node struct {
-	File     File    `json:"file"`     // Change this to use the File struct
-	Adjacent []*Node `json:"adjacent"` // Recursive structure for the tree
+	File     File    `json:"file"`
+	Adjacent []*Node `json:"adjacent"`
+	FilePath string  `json:"filepath"`
 }
 
 type File struct {
-	FileName string   `json:"filename"`
-	FileType FileType `json:"filetype"` // This can be FileTypeFile or FileTypeFolder
+	FileName         string   `json:"filename"`
+	FileType         FileType `json:"filetype"`
+	AbsoluteFilePath string   `json:"absolutefilepath"`
 }
 
 type FilePathRequest struct {

@@ -14,14 +14,16 @@ import (
 // Main function to list files by depth and build the tree structure
 func listFilesByDepthMain(fileName string, maxDepth int, logger *zap.Logger) *models.Node {
 	if fileName == "" {
-		fileName = "./uploads/"
+		fileName = "./uploads"
 	}
 	fileTree := &models.Node{
 		File: models.File{
-			FileName: "Uploads",
-			FileType: models.FileTypeFolder,
+			FileName:         "Uploads",
+			FileType:         models.FileTypeFolder,
+			AbsoluteFilePath: fileName,
 		},
 		Adjacent: []*models.Node{},
+		FilePath: "",
 	}
 
 	logger.Info("Listing files main function")
@@ -75,10 +77,12 @@ func listFilesByDepthRecursive(pathName string, maxDepth, currentDepth int, logg
 
 		newNode := &models.Node{
 			File: models.File{
-				FileName: fileName,
-				FileType: fileType,
+				FileName:         fileName,
+				FileType:         fileType,
+				AbsoluteFilePath: pathName + "/" + fileName,
 			},
 			Adjacent: []*models.Node{},
+			FilePath: pathName,
 		}
 
 		if isDir && currentDepth < maxDepth {
@@ -104,4 +108,14 @@ func printFileTree(node *models.Node, depth int) {
 	for _, child := range node.Adjacent {
 		printFileTree(child, depth+1)
 	}
+}
+
+func delete_empty(s []string) []string {
+	var r []string
+	for _, str := range s {
+		if str != "" {
+			r = append(r, str)
+		}
+	}
+	return r
 }
