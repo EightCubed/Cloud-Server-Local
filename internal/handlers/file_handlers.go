@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"go.uber.org/zap"
@@ -36,8 +37,14 @@ func UploadHandler(logger *zap.Logger) http.HandlerFunc {
 
 		fileName := header.Filename
 
-		// Create a new file on the server
-		dst, err := os.Create("./uploads/" + pathName + "/" + fileName)
+		fullFilePath := filepath.Join(pathName, fileName)
+
+		if err := os.MkdirAll(pathName, os.ModePerm); err != nil {
+			http.Error(w, "Failed to create directory: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		dst, err := os.Create(fullFilePath)
 		if err != nil {
 			http.Error(w, "Unable to create file: "+err.Error(), http.StatusInternalServerError)
 			return
@@ -104,7 +111,7 @@ func ListFileDirectoryHandler(logger *zap.Logger) http.HandlerFunc {
 
 		var resp models.ResponseDataFileDirectory
 		resp.Data = *treeStructure
-		resp.Path = []string{"uploads"}
+		resp.Path = []models.BreadCrumbType{{Title: "uploads", AbsolutePath: "uploads"}}
 		resp.Message = "Successful list"
 
 		w.Header().Set("Content-Type", "application/json")
@@ -133,7 +140,20 @@ func ListFilesByPath(logger *zap.Logger) http.HandlerFunc {
 		var resp models.ResponseDataFileDirectory
 		resp.Data = *treeStructure
 
-		resp.Path = delete_empty(strings.Split(strings.Replace(pathName, "./", "", -1), "/"))
+		breadCrumbList := delete_empty(strings.Split(strings.Replace(pathName, "./", "", -1), "/"))
+
+		var breadCrumb []models.BreadCrumbType
+		var absolutePath string
+		for _, elem := range breadCrumbList {
+			absolutePath += elem + "/"
+			crumb := &models.BreadCrumbType{
+				Title:        elem,
+				AbsolutePath: absolutePath,
+			}
+			breadCrumb = append(breadCrumb, *crumb)
+		}
+
+		resp.Path = breadCrumb
 		resp.Message = "Successful list"
 
 		w.Header().Set("Content-Type", "application/json")
@@ -142,6 +162,5 @@ func ListFilesByPath(logger *zap.Logger) http.HandlerFunc {
 			http.Error(w, "Failed to encode JSON: "+err.Error(), http.StatusInternalServerError)
 			return
 		}
-		logger.Info("Response:", zap.Any("data", resp))
 	}
 }
