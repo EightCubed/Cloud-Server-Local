@@ -145,20 +145,3 @@ func ListFilesByPath(logger *zap.Logger) http.HandlerFunc {
 		logger.Info("Response:", zap.Any("data", resp))
 	}
 }
-
-// // CreateFolderAtPath creates a folder at a particular directory
-// func CreateFolderAtPath(logger *zap.Logger) http.HandlerFunc {
-// 	return func(w http.ResponseWriter, r *http.Request) {
-// 		var req models.FilePathRequest
-// 		err := json.NewDecoder(r.Body).Decode(&req)
-// 		if err != nil || req.FilePath == "" {
-// 			http.Error(w, "Invalid request body", http.StatusBadRequest)
-// 			return
-// 		}
-// 		err = os.Mkdir(req.FilePath, 0700)
-// 		if err != nil {
-// 			http.Error(w, "Unable to create directory: "+err.Error(), http.StatusInternalServerError)
-// 			return
-// 		}
-// 	}
-// }

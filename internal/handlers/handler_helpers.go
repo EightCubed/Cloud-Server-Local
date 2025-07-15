@@ -29,9 +29,8 @@ func listFilesByDepthMain(fileName string, maxDepth int, logger *zap.Logger) *mo
 	}
 
 	if fileName != "" {
-		strings.Split(fileName, "/")
-		fileTree.ParentDirectory = fileName
-		fmt.Println("\n\n\n", fileName, "\n\n\n")
+		splitStr := strings.Split(strings.Replace(fileName, "./", "", -1), "/")
+		fileTree.ParentDirectory = strings.Join(splitStr[:len(splitStr)-1], "/")
 	}
 
 	logger.Info("Listing files main function")
@@ -93,8 +92,9 @@ func listFilesByDepthRecursive(pathName string, maxDepth, currentDepth int, logg
 			FilePath: pathName,
 		}
 
-		if pathName != "" {
-			newNode.ParentDirectory = pathName
+		if fileName != "" {
+			splitStr := strings.Split(strings.Replace(fileName, "./", "", -1), "/")
+			newNode.ParentDirectory = strings.Join(splitStr[:len(splitStr)-1], "/")
 		}
 
 		if isDir && currentDepth < maxDepth {

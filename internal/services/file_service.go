@@ -15,3 +15,8 @@ func ListFiles(path string, logger *zap.Logger) []fs.DirEntry {
 
 	return entries
 }
+
+func DeleteFiles(path string, logger *zap.Logger) {
+	
+	ListFiles(path, logger)
+}
