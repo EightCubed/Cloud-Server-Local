@@ -32,10 +32,13 @@ func UploadHandler(logger *zap.Logger) http.HandlerFunc {
 			http.Error(w, "Unable to retrieve file: "+err.Error(), http.StatusBadRequest)
 			return
 		}
-		logger.Info("File details: ", zap.Any("header", header))
 		defer file.Close()
 
 		fileName := header.Filename
+		if fileName == ".DS_Store" || strings.HasPrefix(fileName, "._") {
+			http.Error(w, "System files like .DS_Store are not allowed", http.StatusBadRequest)
+			return
+		}
 
 		fullFilePath := filepath.Join(pathName, fileName)
 
@@ -57,6 +60,40 @@ func UploadHandler(logger *zap.Logger) http.HandlerFunc {
 		}
 
 		fmt.Fprintln(w, "File uploaded successfully!")
+	}
+}
+
+// UploadHandler handles file uploads
+func DeleteHandler(logger *zap.Logger) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		logger.Info("Incoming Delete request")
+		var request models.DeleteRequestBody
+		err := json.NewDecoder(r.Body).Decode(&request)
+		if err != nil {
+			http.Error(w, "Unable to decode body data: "+err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		var resp models.DeleteResponseBody
+		resp.Message = "Ok! I deleted"
+
+		for _, elementToBeDeleted := range request.FilesToBeDeleted {
+			logger.Info("Deleting file", zap.String("absolutefilePath", elementToBeDeleted.File.AbsoluteFilePath))
+			delete_count, err := deleteByDepthSearch(elementToBeDeleted)
+			if err != nil {
+				resp.FailureCount++
+				resp.Message = "Oops! I couldn't delete all of it"
+			} else {
+				resp.SuccessCount += delete_count
+			}
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		err = json.NewEncoder(w).Encode(resp)
+		if err != nil {
+			http.Error(w, "Failed to encode JSON: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
 	}
 }
 

@@ -22,6 +22,7 @@ func main() {
 
 	// Set up routes
 	r.HandleFunc("/upload", handlers.UploadHandler(logger)).Methods("POST")
+	r.HandleFunc("/delete", handlers.DeleteHandler(logger)).Methods("DELETE")
 	r.HandleFunc("/download", handlers.FileDownloadHandler(logger)).Methods("GET")
 	r.HandleFunc("/createDirectory", handlers.CreateFolderHandler(logger)).Methods("POST")
 	r.HandleFunc("/showTreeDirectory", handlers.ListFileDirectoryHandler(logger)).Methods("GET")
@@ -33,7 +34,7 @@ func main() {
 	c := cors.New(cors.Options{
 		AllowedOrigins:   []string{"*"},
 		AllowCredentials: false,
-		AllowedMethods:   []string{"GET", "POST", "OPTIONS"},
+		AllowedMethods:   []string{"GET", "POST", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"Content-Type", "Authorization"},
 	})
 

@@ -3,6 +3,7 @@ package handlers
 import (
 	"fmt"
 	"io/fs"
+	"os"
 	"sort"
 	"strings"
 
@@ -33,8 +34,6 @@ func listFilesByDepthMain(fileName string, maxDepth int, logger *zap.Logger) *mo
 		fileTree.ParentDirectory = strings.Join(splitStr[:len(splitStr)-1], "/")
 	}
 
-	logger.Info("Listing files main function")
-
 	fileTree.Children = listFilesByDepthRecursive(fileName, maxDepth, 0, logger)
 
 	// fmt.Println("File Tree Structure:")
@@ -59,7 +58,6 @@ func (a ByType) Less(i, j int) bool {
 
 // Recursive function to build the file tree with a depth limit
 func listFilesByDepthRecursive(pathName string, maxDepth, currentDepth int, logger *zap.Logger) []*models.Node {
-	logger.Info("Entered listing recursive function function")
 	if currentDepth > maxDepth {
 		return []*models.Node{}
 	}
@@ -106,6 +104,48 @@ func listFilesByDepthRecursive(pathName string, maxDepth, currentDepth int, logg
 	return fileTree
 }
 
+func deleteByDepthSearch(toDelete models.Node) (deleteCount int, err error) {
+	if toDelete.File.FileType == models.FileTypeFile {
+		err = deleteFile(toDelete.File.AbsoluteFilePath)
+		return
+	} else {
+		for _, element := range toDelete.Children {
+			switch element.File.FileType {
+			case models.FileTypeFile:
+				err = deleteFile(element.File.AbsoluteFilePath)
+				if err != nil {
+					return
+				} else {
+					deleteCount++
+				}
+			case models.FileTypeFolder:
+				var delCount int
+				delCount, err = deleteByDepthSearch(*element)
+				if err != nil {
+					return
+				} else {
+					err = deleteFile(element.File.AbsoluteFilePath)
+					if err != nil {
+						return
+					} else {
+						deleteCount += delCount
+					}
+				}
+			}
+		}
+		deleteFile(toDelete.File.AbsoluteFilePath)
+		return
+	}
+}
+
+func deleteFile(filePath string) error {
+	err := os.Remove(filePath)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func PrintSpaces(spaces int) {
 	for i := 0; i < spaces; i++ {
 		fmt.Print("\t")
@@ -116,7 +156,6 @@ func printFileTree(node *models.Node, depth int) {
 	PrintSpaces(depth)
 	fmt.Println(node.File)
 
-	// Print all Children nodes (children)
 	for _, child := range node.Children {
 		printFileTree(child, depth+1)
 	}

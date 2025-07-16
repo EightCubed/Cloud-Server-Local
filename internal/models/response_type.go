@@ -14,3 +14,13 @@ type ResponseDataFileDirectory struct {
 	Path    []BreadCrumbType `json:"path"`
 	Message string           `json:"message"` // Corrected the typo from 'messaeg' to 'Message'
 }
+
+type DeleteRequestBody struct {
+	FilesToBeDeleted []Node `json:"filesToBeDeleted"`
+}
+
+type DeleteResponseBody struct {
+	SuccessCount int    `json:"success_count"`
+	FailureCount int    `json:"failure_count"`
+	Message      string `json:"message"`
+}
