@@ -34,7 +34,7 @@ func main() {
 
 	r.PathPrefix("/uploads/").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		path := strings.TrimPrefix(r.URL.Path, "/uploads/")
-		filePath := filepath.Join("/home/rockon/Github/Cloud-Server-Local", path)
+		filePath := filepath.Join("/home/rockon/Github/Cloud-Server-Local/uploads", path)
 
 		mimeType := mime.TypeByExtension(filepath.Ext(filePath))
 		if mimeType != "" {
