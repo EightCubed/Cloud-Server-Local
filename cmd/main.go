@@ -2,7 +2,10 @@ package main
 
 import (
 	"cloud-server/internal/handlers"
+	"mime"
 	"net/http"
+	"path/filepath"
+	"strings"
 
 	"github.com/gorilla/mux"
 	"github.com/rs/cors"
@@ -18,7 +21,7 @@ func main() {
 
 	r := mux.NewRouter()
 
-	fs := http.FileServer(http.Dir("./uploads"))
+	// fs := http.FileServer(http.Dir("./uploads"))
 
 	// Set up routes
 	r.HandleFunc("/upload", handlers.UploadHandler(logger)).Methods("POST")
@@ -29,7 +32,17 @@ func main() {
 	r.HandleFunc("/listFiles", handlers.ListFilesByPath(logger)).Methods("GET")
 	r.HandleFunc("/createFolder", handlers.CreateFolderHandler(logger)).Methods("POST")
 
-	r.PathPrefix("/uploads/").Handler(http.StripPrefix("/uploads/", fs))
+	r.PathPrefix("/uploads/").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		path := strings.TrimPrefix(r.URL.Path, "/uploads/")
+		filePath := filepath.Join("/home/rockon/Github/Cloud-Server-Local", path)
+
+		mimeType := mime.TypeByExtension(filepath.Ext(filePath))
+		if mimeType != "" {
+			w.Header().Set("Content-Type", mimeType)
+		}
+
+		http.ServeFile(w, r, filePath)
+	})
 
 	c := cors.New(cors.Options{
 		AllowedOrigins:   []string{"*"},
