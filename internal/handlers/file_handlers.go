@@ -79,13 +79,9 @@ func DeleteHandler(logger *zap.Logger) http.HandlerFunc {
 
 		for _, elementToBeDeleted := range request.FilesToBeDeleted {
 			logger.Info("Deleting file", zap.String("absolutefilePath", elementToBeDeleted.File.AbsoluteFilePath))
-			delete_count, err := deleteByDepthSearch(elementToBeDeleted)
-			if err != nil {
-				resp.FailureCount++
-				resp.Message = "Oops! I couldn't delete all of it"
-			} else {
-				resp.SuccessCount += delete_count
-			}
+			successCount, failureCount := deleteByDepthSearch(elementToBeDeleted)
+			resp.SuccessCount += successCount
+			resp.FailureCount += failureCount
 		}
 
 		w.Header().Set("Content-Type", "application/json")

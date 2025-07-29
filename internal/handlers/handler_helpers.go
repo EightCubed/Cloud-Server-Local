@@ -104,38 +104,37 @@ func listFilesByDepthRecursive(pathName string, maxDepth, currentDepth int, logg
 	return fileTree
 }
 
-func deleteByDepthSearch(toDelete models.Node) (deleteCount int, err error) {
+func deleteByDepthSearch(toDelete models.Node) (successCount int, failureCount int) {
 	if toDelete.File.FileType == models.FileTypeFile {
-		err = deleteFile(toDelete.File.AbsoluteFilePath)
-		return
-	} else {
-		for _, element := range toDelete.Children {
-			switch element.File.FileType {
-			case models.FileTypeFile:
-				err = deleteFile(element.File.AbsoluteFilePath)
-				if err != nil {
-					return
-				} else {
-					deleteCount++
-				}
-			case models.FileTypeFolder:
-				var delCount int
-				delCount, err = deleteByDepthSearch(*element)
-				if err != nil {
-					return
-				} else {
-					err = deleteFile(element.File.AbsoluteFilePath)
-					if err != nil {
-						return
-					} else {
-						deleteCount += delCount
-					}
-				}
-			}
+		if err := deleteFile(toDelete.File.AbsoluteFilePath); err != nil {
+			failureCount++
+		} else {
+			successCount++
 		}
-		deleteFile(toDelete.File.AbsoluteFilePath)
 		return
 	}
+
+	for _, child := range toDelete.Children {
+		sc, fc := deleteByDepthSearch(*child)
+		successCount += sc
+		failureCount += fc
+
+		if child.File.FileType == models.FileTypeFolder {
+			if err := deleteFile(child.File.AbsoluteFilePath); err != nil {
+				failureCount++
+			} else {
+				successCount++
+			}
+		}
+	}
+
+	if err := deleteFile(toDelete.File.AbsoluteFilePath); err != nil {
+		failureCount++
+	} else {
+		successCount++
+	}
+
+	return
 }
 
 func deleteFile(filePath string) error {
