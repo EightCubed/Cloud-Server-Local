@@ -2,9 +2,11 @@ package main
 
 import (
 	"cloud-server/internal/handlers"
+	"log"
 	"net/http"
 
 	"github.com/gorilla/mux"
+	"github.com/joho/godotenv"
 	"github.com/rs/cors"
 	"go.uber.org/zap"
 )
@@ -15,6 +17,11 @@ func main() {
 		panic(err)
 	}
 	defer logger.Sync()
+
+	err = godotenv.Load()
+	if err != nil {
+		log.Fatal("Error loading .env file")
+	}
 
 	r := mux.NewRouter()
 

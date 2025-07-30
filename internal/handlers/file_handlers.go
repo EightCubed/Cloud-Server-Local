@@ -40,14 +40,14 @@ func UploadHandler(logger *zap.Logger) http.HandlerFunc {
 			return
 		}
 
-		fullFilePath := filepath.Join(pathName, fileName)
+		absolutefilePath := returnAbsoluteFilePath(pathName)
 
-		if err := os.MkdirAll(pathName, os.ModePerm); err != nil {
+		if err := os.MkdirAll(absolutefilePath, os.ModePerm); err != nil {
 			http.Error(w, "Failed to create directory: "+err.Error(), http.StatusInternalServerError)
 			return
 		}
 
-		dst, err := os.Create(fullFilePath)
+		dst, err := os.Create(filepath.Join(absolutefilePath, fileName))
 		if err != nil {
 			http.Error(w, "Unable to create file: "+err.Error(), http.StatusInternalServerError)
 			return
@@ -98,7 +98,7 @@ func FileDownloadHandler(logger *zap.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		logger.Info("Incoming Download request")
 		fileName := r.URL.Query().Get("fileName")
-		filePath := "./uploads/" + fileName
+		filePath := returnAbsoluteFilePath(fileName)
 
 		logger.Info("File name to download", zap.String("File:", fileName))
 		file, err := os.Open(filePath)
@@ -128,7 +128,8 @@ func CreateFolderHandler(logger *zap.Logger) http.HandlerFunc {
 			http.Error(w, "Unable to decode body data: "+err.Error(), http.StatusBadRequest)
 			return
 		}
-		err = os.Mkdir(request.Directory, 0700)
+		absDir := filepath.Join(os.Getenv("FILE_STORAGE_PATH"), request.Directory)
+		err = os.Mkdir(absDir, 0700)
 		if err != nil {
 			http.Error(w, "Unable to create directory: "+err.Error(), http.StatusInternalServerError)
 			return
@@ -140,11 +141,12 @@ func CreateFolderHandler(logger *zap.Logger) http.HandlerFunc {
 func ListFileDirectoryHandler(logger *zap.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		logger.Info("Listing directory")
-		treeStructure := listFilesByDepthMain("./uploads", 10, logger)
+		rootPath := os.Getenv("FILE_STORAGE_PATH")
+		treeStructure := listFilesByDepthMain(rootPath, 10, logger)
 
 		var resp models.ResponseDataFileDirectory
 		resp.Data = *treeStructure
-		resp.Path = []models.BreadCrumbType{{Title: "uploads", AbsolutePath: "uploads"}}
+		resp.Path = []models.BreadCrumbType{{Title: rootPath, AbsolutePath: rootPath}}
 		resp.Message = "Successful list"
 
 		w.Header().Set("Content-Type", "application/json")
@@ -163,17 +165,19 @@ func ListFilesByPath(logger *zap.Logger) http.HandlerFunc {
 		//Fix: Input sanitization before querying
 		pathName := r.URL.Query().Get("fileName")
 		if pathName == "" {
-			pathName = "./uploads"
+			pathName = ""
 		}
-		logger.Info("Listing directory")
-		treeStructure := listFilesByDepthMain(pathName, 10, logger)
 
-		logger.Info("Query params", zap.String("pathName", pathName))
+		absPath := returnAbsoluteFilePath(pathName)
+		logger.Info("Listing directory")
+		treeStructure := listFilesByDepthMain(absPath, 10, logger)
+
+		logger.Info("Query params", zap.String("pathName", absPath))
 
 		var resp models.ResponseDataFileDirectory
 		resp.Data = *treeStructure
 
-		breadCrumbList := delete_empty(strings.Split(strings.Replace(pathName, "./", "", -1), "/"))
+		breadCrumbList := strings.Split(returnRelativeFilePath(pathName), "/")
 
 		var breadCrumb []models.BreadCrumbType
 		var absolutePath string

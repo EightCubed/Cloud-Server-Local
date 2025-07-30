@@ -16,7 +16,7 @@ import (
 // Main function to list files by depth and build the tree structure
 func listFilesByDepthMain(fileName string, maxDepth int, logger *zap.Logger) *models.Node {
 	if fileName == "" {
-		fileName = "./uploads"
+		fileName = returnAbsoluteFilePath("")
 	}
 	fileTree := &models.Node{
 		File: models.File{
@@ -168,4 +168,21 @@ func delete_empty(s []string) []string {
 		}
 	}
 	return r
+}
+
+func returnAbsoluteFilePath(fileName string) string {
+	if fileName == "" {
+		return os.Getenv("FILE_STORAGE_PATH")
+	}
+	if strings.HasPrefix(fileName, "./") {
+		fileName = os.Getenv("FILE_STORAGE_PATH") + strings.TrimPrefix(fileName, "/")
+	}
+	return fileName
+}
+
+func returnRelativeFilePath(fileName string) string {
+	if strings.HasPrefix(fileName, os.Getenv("FILE_STORAGE_PATH")) {
+		fileName = os.Getenv("FILE_STORAGE_PATH") + strings.TrimPrefix(fileName, os.Getenv("FILE_STORAGE_PATH"))
+	}
+	return fileName
 }
