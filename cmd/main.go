@@ -2,8 +2,10 @@ package main
 
 import (
 	"cloud-server/internal/handlers"
+	"cloud-server/internal/models"
 	"log"
 	"net/http"
+	"os"
 
 	"github.com/gorilla/mux"
 	"github.com/joho/godotenv"
@@ -22,19 +24,23 @@ func main() {
 	if err != nil {
 		log.Fatal("Error loading .env file")
 	}
+	cfg := &models.Config{
+		PATH_TO_DIRECTORY: os.Getenv("FILE_STORAGE_PATH"),
+		STORAGE_DIRECTORY: os.Getenv("FILE_STORAGE_DIRECTORY"),
+	}
 
 	r := mux.NewRouter()
 
-	// Set up routes
-	r.HandleFunc("/upload", handlers.UploadHandler(logger)).Methods("POST")
-	r.HandleFunc("/delete", handlers.DeleteHandler(logger)).Methods("DELETE")
-	r.HandleFunc("/download", handlers.FileDownloadHandler(logger)).Methods("GET")
-	r.HandleFunc("/createDirectory", handlers.CreateFolderHandler(logger)).Methods("POST")
-	r.HandleFunc("/showTreeDirectory", handlers.ListFileDirectoryHandler(logger)).Methods("GET")
-	r.HandleFunc("/listFiles", handlers.ListFilesByPath(logger)).Methods("GET")
-	r.HandleFunc("/createFolder", handlers.CreateFolderHandler(logger)).Methods("POST")
+	handler := handlers.ReturnHandler(logger, cfg)
 
-	r.PathPrefix("/uploads/").Handler(http.StripPrefix("/uploads/", http.FileServer(http.Dir("./uploads"))))
+	// Set up routes
+	r.HandleFunc("/upload", handler.UploadHandler).Methods("POST")
+	// r.HandleFunc("/delete", handlers.DeleteHandler(logger)).Methods("DELETE")
+	// r.HandleFunc("/download", handlers.FileDownloadHandler(logger)).Methods("GET")
+	r.HandleFunc("/createDirectory", handler.CreateFolderHandler).Methods("POST")
+	r.HandleFunc("/showTreeDirectory", handler.ListDirectoryTreeHandler).Methods("GET")
+	// r.HandleFunc("/listFiles", handlers.ListFilesByPath(logger)).Methods("GET")
+	// r.HandleFunc("/createFolder", handlers.CreateFolderHandler(logger)).Methods("POST")
 
 	c := cors.New(cors.Options{
 		AllowedOrigins:   []string{"*"},

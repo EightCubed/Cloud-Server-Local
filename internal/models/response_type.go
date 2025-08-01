@@ -1,18 +1,18 @@
 package models
 
 type DirectoryRequestBody struct {
-	Directory string `json:"directory"` // Add JSON tags for better decoding
+	Directory string `json:"directory"`
 }
 
 type BreadCrumbType struct {
 	Title        string `json:"title"`
-	AbsolutePath string `json:"absolutePath"`
+	RelativePath string `json:"relativePath"`
 }
 
 type ResponseDataFileDirectory struct {
-	Data    Node             `json:"data"`
+	Data    *Node            `json:"data"`
 	Path    []BreadCrumbType `json:"path"`
-	Message string           `json:"message"` // Corrected the typo from 'messaeg' to 'Message'
+	Message string           `json:"message"`
 }
 
 type DeleteRequestBody struct {

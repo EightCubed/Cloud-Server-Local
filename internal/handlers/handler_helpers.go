@@ -1,188 +1,124 @@
 package handlers
 
 import (
-	"fmt"
-	"io/fs"
-	"os"
-	"sort"
-	"strings"
-
 	"cloud-server/internal/models"
-	"cloud-server/internal/services"
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
 
 	"go.uber.org/zap"
 )
 
-// Main function to list files by depth and build the tree structure
-func listFilesByDepthMain(fileName string, maxDepth int, logger *zap.Logger) *models.Node {
-	if fileName == "" {
-		fileName = returnAbsoluteFilePath("")
-	}
-	fileTree := &models.Node{
-		File: models.File{
-			FileName:         fileName,
-			FileType:         models.FileTypeFolder,
-			AbsoluteFilePath: fileName,
-		},
-		Children:        []*models.Node{},
-		FilePath:        fileName,
-		ParentDirectory: "",
-	}
-
-	if fileName != "" {
-		splitStr := strings.Split(strings.Replace(fileName, "./", "", -1), "/")
-		fileTree.ParentDirectory = strings.Join(splitStr[:len(splitStr)-1], "/")
-	}
-
-	fileTree.Children = listFilesByDepthRecursive(fileName, maxDepth, 0, logger)
-
-	// fmt.Println("File Tree Structure:")
-	// printFileTree(fileTree, 0)
-	// fmt.Print("inner", fileTree)
-	return fileTree
+type Handler struct {
+	Logger *zap.SugaredLogger
+	Config *models.Config
 }
 
-type ByType []fs.DirEntry
-
-func (a ByType) Len() int      { return len(a) }
-func (a ByType) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
-func (a ByType) Less(i, j int) bool {
-	if a[i].IsDir() && !a[j].IsDir() {
-		return true
+func ReturnHandler(logger *zap.Logger, cfg *models.Config) *Handler {
+	return &Handler{
+		Logger: logger.Sugar(),
+		Config: cfg,
 	}
-	if !a[i].IsDir() && a[j].IsDir() {
-		return false
-	}
-	return a[i].Name() < a[j].Name()
 }
 
-// Recursive function to build the file tree with a depth limit
-func listFilesByDepthRecursive(pathName string, maxDepth, currentDepth int, logger *zap.Logger) []*models.Node {
-	if currentDepth > maxDepth {
-		return []*models.Node{}
+func validatePathName(pathName string, cfg *models.Config) (string, error) {
+	if !strings.HasPrefix(pathName, cfg.STORAGE_DIRECTORY) {
+		return "", fmt.Errorf("invalid pathname passed")
 	}
-
-	entries := services.ListFiles(pathName, logger)
-	sort.Sort(ByType(entries))
-	fileTree := []*models.Node{}
-
-	for _, entry := range entries {
-		fileName := entry.Name()
-		fileInfo, err := entry.Info()
-		isDir := fileInfo.IsDir()
-		if err != nil {
-			logger.Error("Error getting file info", zap.Error(err))
-			continue
-		}
-
-		fileType := models.FileTypeFile
-		if isDir {
-			fileType = models.FileTypeFolder
-		}
-
-		newNode := &models.Node{
-			File: models.File{
-				FileName:         fileName,
-				FileType:         fileType,
-				AbsoluteFilePath: pathName + "/" + fileName,
-			},
-			Children: []*models.Node{},
-			FilePath: pathName,
-		}
-
-		if fileName != "" {
-			splitStr := strings.Split(strings.Replace(fileName, "./", "", -1), "/")
-			newNode.ParentDirectory = strings.Join(splitStr[:len(splitStr)-1], "/")
-		}
-
-		if isDir && currentDepth < maxDepth {
-			newNode.Children = listFilesByDepthRecursive(pathName+"/"+fileName, maxDepth, currentDepth+1, logger)
-		}
-		fileTree = append(fileTree, newNode)
-	}
-
-	return fileTree
+	return pathName, nil
 }
 
-func deleteByDepthSearch(toDelete models.Node) (successCount int, failureCount int) {
-	if toDelete.File.FileType == models.FileTypeFile {
-		if err := deleteFile(toDelete.File.AbsoluteFilePath); err != nil {
-			failureCount++
-		} else {
-			successCount++
+func returnAbsolutePath(pathName string, cfg *models.Config) string {
+	return filepath.Join(cfg.PATH_TO_DIRECTORY, pathName)
+}
+
+func returnFormattedRelativePath(pathName string, cfg *models.Config) string {
+	relativePath := pathName
+	if strings.HasPrefix(relativePath, cfg.PATH_TO_DIRECTORY) {
+		relativePath = strings.Replace(relativePath, cfg.PATH_TO_DIRECTORY, "", 1)
+	}
+
+	if !strings.HasSuffix(relativePath, "/") {
+		relativePath += "/"
+	}
+	return relativePath
+}
+
+func buildBreadCrumbs(pathName string) (breadCrumbs []models.BreadCrumbType) {
+	splitPathNames := strings.Split(pathName, "/")
+	var relativePathName string
+	for _, pathName := range splitPathNames {
+		relativePathName = filepath.Join(relativePathName, pathName)
+		item := &models.BreadCrumbType{
+			Title:        pathName,
+			RelativePath: relativePathName,
 		}
-		return
+		breadCrumbs = append(breadCrumbs, *item)
 	}
-
-	for _, child := range toDelete.Children {
-		sc, fc := deleteByDepthSearch(*child)
-		successCount += sc
-		failureCount += fc
-
-		if child.File.FileType == models.FileTypeFolder {
-			if err := deleteFile(child.File.AbsoluteFilePath); err != nil {
-				failureCount++
-			} else {
-				successCount++
-			}
-		}
-	}
-
-	if err := deleteFile(toDelete.File.AbsoluteFilePath); err != nil {
-		failureCount++
-	} else {
-		successCount++
-	}
-
 	return
 }
 
-func deleteFile(filePath string) error {
-	err := os.Remove(filePath)
+func returnParentDirectory(pathName string, cfg *models.Config) string {
+	parentDir, _ := filepath.Split(pathName)
+	return parentDir
+}
+
+func listDirectoryRecursive(cfg *models.Config, relativefilepath string, currentDepth, maxDepth int) (*models.Node, error) {
+	if currentDepth > maxDepth {
+		return nil, nil
+	}
+
+	formattedRelativePath := returnFormattedRelativePath(relativefilepath, cfg)
+	absolutefilepath := returnAbsolutePath(relativefilepath, cfg)
+
+	dirEntry, err := os.ReadDir(absolutefilepath)
 	if err != nil {
-		return err
+		return nil, fmt.Errorf("failed to read directory: %w", err)
 	}
-	return nil
-}
 
-func PrintSpaces(spaces int) {
-	for i := 0; i < spaces; i++ {
-		fmt.Print("\t")
+	rootNode := &models.Node{
+		File: models.File{
+			FileName:         filepath.Base(relativefilepath),
+			FileType:         models.FileTypeFolder,
+			AbsoluteFilePath: formattedRelativePath,
+		},
+		FilePath:        formattedRelativePath,
+		ParentDirectory: returnParentDirectory(formattedRelativePath, cfg),
+		Children:        []*models.Node{},
 	}
-}
 
-func printFileTree(node *models.Node, depth int) {
-	PrintSpaces(depth)
-	fmt.Println(node.File)
+	for _, entry := range dirEntry {
+		entryRelPath := filepath.Join(relativefilepath, entry.Name())
+		entryFormattedPath := filepath.Join(formattedRelativePath, entry.Name())
+		entryAbsPath := filepath.Join(formattedRelativePath, entry.Name())
 
-	for _, child := range node.Children {
-		printFileTree(child, depth+1)
-	}
-}
-
-func delete_empty(s []string) []string {
-	var r []string
-	for _, str := range s {
-		if str != "" {
-			r = append(r, str)
+		node := &models.Node{
+			File: models.File{
+				FileName:         entry.Name(),
+				AbsoluteFilePath: entryAbsPath,
+			},
+			FilePath:        entryFormattedPath,
+			ParentDirectory: returnParentDirectory(formattedRelativePath, cfg),
+			Children:        nil,
 		}
-	}
-	return r
-}
 
-func returnAbsoluteFilePath(fileName string) string {
-	if fileName == "" {
-		return os.Getenv("FILE_STORAGE_PATH")
-	}
-	if strings.HasPrefix(fileName, "./") {
-		fileName = os.Getenv("FILE_STORAGE_PATH") + strings.TrimPrefix(fileName, "/")
-	}
-	return fileName
-}
+		if entry.IsDir() {
+			node.File.FileType = models.FileTypeFolder
 
-func returnRelativeFilePath(fileName string) string {
-	if strings.HasPrefix(fileName, os.Getenv("FILE_STORAGE_PATH")) {
-		fileName = os.Getenv("FILE_STORAGE_PATH") + strings.TrimPrefix(fileName, os.Getenv("FILE_STORAGE_PATH"))
+			children, err := listDirectoryRecursive(cfg, entryRelPath, currentDepth+1, maxDepth)
+			if err != nil {
+				return nil, fmt.Errorf("failed to read directory recursively: %w", err)
+			}
+			if children != nil {
+				node.Children = children.Children
+			}
+		} else {
+			node.File.FileType = models.FileTypeFile
+		}
+
+		rootNode.Children = append(rootNode.Children, node)
 	}
-	return fileName
+
+	return rootNode, nil
 }
