@@ -43,7 +43,7 @@ func main() {
 	r.HandleFunc("/createFolder", handler.CreateFolderHandler).Methods("POST")
 	r.HandleFunc("/folder/{id:.*}", handler.DownloadFolderHandler).Methods("GET")
 
-	storageRoot := filepath.Join(cfg.PATH_TO_DIRECTORY, cfg.STORAGE_DIRECTORY)
+	storageRoot := filepath.Join(cfg.PATH_TO_DIRECTORY)
 	api := r.PathPrefix("/files/").Subrouter()
 	fs := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		path := strings.TrimPrefix(r.URL.Path, "/files/")
