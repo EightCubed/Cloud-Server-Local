@@ -46,23 +46,10 @@ func main() {
 	storageRoot := filepath.Join(cfg.PATH_TO_DIRECTORY)
 	r.PathPrefix("/files/").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		path := strings.TrimPrefix(r.URL.Path, "/files/")
-
-		path = strings.TrimPrefix(path, cfg.STORAGE_DIRECTORY)
-
 		cleanPath := filepath.Clean(path)
-
-		if strings.Contains(cleanPath, "..") {
-			http.Error(w, "Invalid path", http.StatusBadRequest)
-			return
-		}
 
 		finalPath := filepath.Join(storageRoot, cleanPath)
 		log.Println("Serving file:", finalPath)
-
-		if _, err := os.Stat(finalPath); os.IsNotExist(err) {
-			http.Error(w, "File not found", http.StatusNotFound)
-			return
-		}
 
 		http.ServeFile(w, r, finalPath)
 	}).Methods("GET")
