@@ -4,12 +4,12 @@ import (
 	"cloud-server/internal/handlers"
 	"cloud-server/internal/models"
 	"context"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
 	"path/filepath"
-	"strings"
 	"syscall"
 	"time"
 
@@ -44,24 +44,27 @@ func main() {
 	r.HandleFunc("/folder/{id:.*}", handler.DownloadFolderHandler).Methods("GET")
 
 	storageRoot := filepath.Join(cfg.PATH_TO_DIRECTORY)
-	r.PathPrefix("/files/").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		path := strings.TrimPrefix(r.URL.Path, "/files/")
-		cleanPath := filepath.Clean(path)
+	r.HandleFunc("/debug-path/{path:.*}", func(w http.ResponseWriter, r *http.Request) {
+		vars := mux.Vars(r)
+		path := vars["path"]
 
-		if strings.Contains(cleanPath, "..") {
-			http.Error(w, "Invalid path", http.StatusBadRequest)
-			return
+		log.Printf("Debug - Full URL: %s", r.URL.String())
+		log.Printf("Debug - URL Path: %s", r.URL.Path)
+		log.Printf("Debug - Mux Path Variable: %s", path)
+		log.Printf("Debug - Storage Root: %s", storageRoot)
+
+		finalPath := filepath.Join(storageRoot, path)
+		log.Printf("Debug - Final Path: %s", finalPath)
+
+		// Check if file exists
+		if stat, err := os.Stat(finalPath); err == nil {
+			w.WriteHeader(http.StatusOK)
+			fmt.Fprintf(w, "File exists: %s\nSize: %d bytes\nModified: %s",
+				finalPath, stat.Size(), stat.ModTime())
+		} else {
+			w.WriteHeader(http.StatusNotFound)
+			fmt.Fprintf(w, "File not found: %s\nError: %s", finalPath, err)
 		}
-
-		finalPath := filepath.Join(storageRoot, cleanPath)
-		log.Println("Serving file:", finalPath)
-
-		if _, err := os.Stat(finalPath); os.IsNotExist(err) {
-			http.Error(w, "File not found", http.StatusNotFound)
-			return
-		}
-
-		http.ServeFile(w, r, finalPath)
 	}).Methods("GET")
 
 	c := cors.New(cors.Options{
