@@ -44,8 +44,7 @@ func main() {
 	r.HandleFunc("/folder/{id:.*}", handler.DownloadFolderHandler).Methods("GET")
 
 	storageRoot := filepath.Join(cfg.PATH_TO_DIRECTORY)
-	api := r.PathPrefix("/files/").Subrouter()
-	fs := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	r.PathPrefix("/files/").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		path := strings.TrimPrefix(r.URL.Path, "/files/")
 		cleanPath := filepath.Clean(path)
 
@@ -53,8 +52,7 @@ func main() {
 		log.Println("Serving file:", finalPath)
 
 		http.ServeFile(w, r, finalPath)
-	})
-	api.PathPrefix("/files/").Handler(fs).Methods("GET")
+	}).Methods("GET")
 
 	c := cors.New(cors.Options{
 		AllowedOrigins:   []string{"*"},
