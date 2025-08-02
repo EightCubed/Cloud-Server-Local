@@ -4,6 +4,7 @@ import (
 	"cloud-server/internal/handlers"
 	"cloud-server/internal/models"
 	"context"
+	"log"
 	"net/http"
 	"os"
 	"os/signal"
@@ -41,11 +42,11 @@ func main() {
 	r.HandleFunc("/createFolder", handler.CreateFolderHandler).Methods("POST")
 	r.HandleFunc("/folder/{id:.*}", handler.DownloadFolderHandler).Methods("GET")
 
-	storageRoot := cfg.PATH_TO_DIRECTORY + "/"
-	storageRoot = strings.TrimRight(storageRoot, "/")
-	fs := http.StripPrefix("/files/", http.FileServer(http.Dir(storageRoot)))
-
-	r.PathPrefix("/files/").Handler(fs).Methods("GET")
+	storageRoot := strings.TrimRight(cfg.PATH_TO_DIRECTORY, "/") + "/" + strings.Trim(cfg.STORAGE_DIRECTORY, "/")
+	api := r.PathPrefix("/api").Subrouter()
+	fs := http.StripPrefix("/api/files/", http.FileServer(http.Dir(storageRoot)))
+	api.PathPrefix("/files/").Handler(fs).Methods("GET")
+	log.Println("Serving static files from:", storageRoot)
 
 	c := cors.New(cors.Options{
 		AllowedOrigins:   []string{"*"},

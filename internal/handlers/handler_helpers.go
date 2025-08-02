@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"go.uber.org/zap"
@@ -88,6 +89,17 @@ func listDirectoryRecursive(cfg *models.Config, relativefilepath string, current
 		ParentDirectory: returnParentDirectory(formattedRelativePath, cfg),
 		Children:        []*models.Node{},
 	}
+
+	sort.Slice(dirEntry, func(i, j int) bool {
+		if dirEntry[i].IsDir() && !dirEntry[j].IsDir() {
+			return true
+		}
+		if !dirEntry[i].IsDir() && dirEntry[j].IsDir() {
+			return false
+		}
+
+		return dirEntry[i].Name() < dirEntry[j].Name()
+	})
 
 	for _, entry := range dirEntry {
 		entryRelPath := filepath.Join(relativefilepath, entry.Name())
