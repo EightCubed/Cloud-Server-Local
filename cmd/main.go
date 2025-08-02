@@ -34,14 +34,15 @@ func main() {
 
 	handler := handlers.ReturnHandler(logger, cfg)
 
-	// Set up routes
-	r.HandleFunc("/upload", handler.UploadHandler).Methods("POST")
-	r.HandleFunc("/delete", handler.DeleteHandler).Methods("DELETE")
-	r.HandleFunc("/download", handler.FileDownloadHandler).Methods("GET")
-	r.HandleFunc("/createDirectory", handler.CreateFolderHandler).Methods("POST")
-	r.HandleFunc("/showTreeDirectory", handler.ListDirectoryTreeHandler).Methods("GET")
-	r.HandleFunc("/createFolder", handler.CreateFolderHandler).Methods("POST")
-	r.HandleFunc("/folder/{id:.*}", handler.DownloadFolderHandler).Methods("GET")
+	api := r.PathPrefix("/api").Subrouter()
+
+	api.HandleFunc("/upload", handler.UploadHandler).Methods("POST")
+	api.HandleFunc("/delete", handler.DeleteHandler).Methods("DELETE")
+	api.HandleFunc("/download", handler.FileDownloadHandler).Methods("GET")
+	api.HandleFunc("/createDirectory", handler.CreateFolderHandler).Methods("POST")
+	api.HandleFunc("/showTreeDirectory", handler.ListDirectoryTreeHandler).Methods("GET")
+	api.HandleFunc("/createFolder", handler.CreateFolderHandler).Methods("POST")
+	api.HandleFunc("/folder/{id:.*}", handler.DownloadFolderHandler).Methods("GET")
 
 	storageRoot := filepath.Join(cfg.PATH_TO_DIRECTORY)
 	r.PathPrefix("/files/").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -55,7 +56,7 @@ func main() {
 	}).Methods("GET")
 
 	c := cors.New(cors.Options{
-		AllowedOrigins:   []string{"https://eightcubed.site"},
+		AllowedOrigins:   []string{"*"},
 		AllowCredentials: false,
 		AllowedMethods:   []string{"GET", "POST", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"Content-Type", "Authorization"},
