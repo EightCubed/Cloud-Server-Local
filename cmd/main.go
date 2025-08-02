@@ -46,6 +46,9 @@ func main() {
 	storageRoot := filepath.Join(cfg.PATH_TO_DIRECTORY)
 	r.PathPrefix("/files/").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		path := strings.TrimPrefix(r.URL.Path, "/files/")
+
+		path = strings.TrimPrefix(path, cfg.STORAGE_DIRECTORY)
+
 		cleanPath := filepath.Clean(path)
 
 		if strings.Contains(cleanPath, "..") {
