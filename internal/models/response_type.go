@@ -16,7 +16,7 @@ type ResponseDataFileDirectory struct {
 }
 
 type DeleteRequestBody struct {
-	FilesToBeDeleted []Node `json:"filesToBeDeleted"`
+	File Node `json:"file"`
 }
 
 type DeleteResponseBody struct {

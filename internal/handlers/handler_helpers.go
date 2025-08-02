@@ -23,7 +23,8 @@ func ReturnHandler(logger *zap.Logger, cfg *models.Config) *Handler {
 }
 
 func validatePathName(pathName string, cfg *models.Config) (string, error) {
-	if !strings.HasPrefix(pathName, cfg.STORAGE_DIRECTORY) {
+	cleanedPathName := filepath.Clean(pathName)
+	if !strings.HasPrefix(cleanedPathName, cfg.STORAGE_DIRECTORY) {
 		return "", fmt.Errorf("invalid pathname passed")
 	}
 	return pathName, nil
@@ -121,4 +122,38 @@ func listDirectoryRecursive(cfg *models.Config, relativefilepath string, current
 	}
 
 	return rootNode, nil
+}
+
+func deleteFile(filePath string) error {
+	err := os.Remove(filePath)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func deleteFolder(filePath string) error {
+	entries, err := os.ReadDir(filePath)
+	if err != nil {
+		return err
+	}
+
+	for _, entry := range entries {
+		path := filepath.Join(filePath, entry.Name())
+		if entry.IsDir() {
+			deleteFolder(path)
+			err := os.Remove(filePath)
+			if err != nil {
+				return fmt.Errorf("failed to delete folder")
+			}
+		} else {
+			deleteFile(path)
+		}
+	}
+
+	err = os.Remove(filePath)
+	if err != nil {
+		return fmt.Errorf("failed to delete folder")
+	}
+	return nil
 }

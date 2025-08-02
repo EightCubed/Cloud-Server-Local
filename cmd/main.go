@@ -3,12 +3,15 @@ package main
 import (
 	"cloud-server/internal/handlers"
 	"cloud-server/internal/models"
-	"log"
+	"context"
 	"net/http"
 	"os"
+	"os/signal"
+	"strings"
+	"syscall"
+	"time"
 
 	"github.com/gorilla/mux"
-	"github.com/joho/godotenv"
 	"github.com/rs/cors"
 	"go.uber.org/zap"
 )
@@ -20,10 +23,6 @@ func main() {
 	}
 	defer logger.Sync()
 
-	err = godotenv.Load()
-	if err != nil {
-		log.Fatal("Error loading .env file")
-	}
 	cfg := &models.Config{
 		PATH_TO_DIRECTORY: os.Getenv("FILE_STORAGE_PATH"),
 		STORAGE_DIRECTORY: os.Getenv("FILE_STORAGE_DIRECTORY"),
@@ -35,12 +34,18 @@ func main() {
 
 	// Set up routes
 	r.HandleFunc("/upload", handler.UploadHandler).Methods("POST")
-	// r.HandleFunc("/delete", handlers.DeleteHandler(logger)).Methods("DELETE")
-	// r.HandleFunc("/download", handlers.FileDownloadHandler(logger)).Methods("GET")
+	r.HandleFunc("/delete", handler.DeleteHandler).Methods("DELETE")
+	r.HandleFunc("/download", handler.FileDownloadHandler).Methods("GET")
 	r.HandleFunc("/createDirectory", handler.CreateFolderHandler).Methods("POST")
 	r.HandleFunc("/showTreeDirectory", handler.ListDirectoryTreeHandler).Methods("GET")
-	// r.HandleFunc("/listFiles", handlers.ListFilesByPath(logger)).Methods("GET")
-	// r.HandleFunc("/createFolder", handlers.CreateFolderHandler(logger)).Methods("POST")
+	r.HandleFunc("/createFolder", handler.CreateFolderHandler).Methods("POST")
+	r.HandleFunc("/folder/{id:.*}", handler.DownloadFolderHandler).Methods("GET")
+
+	storageRoot := cfg.PATH_TO_DIRECTORY + "/"
+	storageRoot = strings.TrimRight(storageRoot, "/")
+	fs := http.StripPrefix("/files/", http.FileServer(http.Dir(storageRoot)))
+
+	r.PathPrefix("/files/").Handler(fs).Methods("GET")
 
 	c := cors.New(cors.Options{
 		AllowedOrigins:   []string{"*"},
@@ -49,10 +54,29 @@ func main() {
 		AllowedHeaders:   []string{"Content-Type", "Authorization"},
 	})
 
-	// Start the HTTP server on port 8080
-	logger.Info("Server started at http://localhost:8080")
-	err = http.ListenAndServe(":8080", c.Handler(r))
-	if err != nil {
-		logger.Fatal("Error starting server:", zap.Error(err))
+	srv := &http.Server{
+		Addr:    ":8080",
+		Handler: c.Handler(r),
 	}
+
+	go func() {
+		logger.Info("Server started at http://localhost:8080")
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			logger.Fatal("Server error", zap.Error(err))
+		}
+	}()
+
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+
+	<-quit
+	logger.Info("Shutting down server...")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if err := srv.Shutdown(ctx); err != nil {
+		logger.Fatal("Server forced to shutdown", zap.Error(err))
+	}
+
+	logger.Info("Server exited gracefully")
 }
