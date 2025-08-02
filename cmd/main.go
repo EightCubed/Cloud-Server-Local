@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
@@ -42,11 +43,18 @@ func main() {
 	r.HandleFunc("/createFolder", handler.CreateFolderHandler).Methods("POST")
 	r.HandleFunc("/folder/{id:.*}", handler.DownloadFolderHandler).Methods("GET")
 
-	storageRoot := strings.TrimRight(cfg.PATH_TO_DIRECTORY, "/") + "/" + strings.Trim(cfg.STORAGE_DIRECTORY, "/")
-	api := r.PathPrefix("/api").Subrouter()
-	fs := http.StripPrefix("/api/files/", http.FileServer(http.Dir(storageRoot)))
+	storageRoot := filepath.Join(cfg.PATH_TO_DIRECTORY, cfg.STORAGE_DIRECTORY)
+	api := r.PathPrefix("/files/").Subrouter()
+	fs := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		path := strings.TrimPrefix(r.URL.Path, "/files/")
+		cleanPath := filepath.Clean(path)
+
+		finalPath := filepath.Join(storageRoot, cleanPath)
+		log.Println("Serving file:", finalPath)
+
+		http.ServeFile(w, r, finalPath)
+	})
 	api.PathPrefix("/files/").Handler(fs).Methods("GET")
-	log.Println("Serving static files from:", storageRoot)
 
 	c := cors.New(cors.Options{
 		AllowedOrigins:   []string{"*"},
