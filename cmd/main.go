@@ -48,8 +48,18 @@ func main() {
 		path := strings.TrimPrefix(r.URL.Path, "/files/")
 		cleanPath := filepath.Clean(path)
 
+		if strings.Contains(cleanPath, "..") {
+			http.Error(w, "Invalid path", http.StatusBadRequest)
+			return
+		}
+
 		finalPath := filepath.Join(storageRoot, cleanPath)
 		log.Println("Serving file:", finalPath)
+
+		if _, err := os.Stat(finalPath); os.IsNotExist(err) {
+			http.Error(w, "File not found", http.StatusNotFound)
+			return
+		}
 
 		http.ServeFile(w, r, finalPath)
 	}).Methods("GET")
