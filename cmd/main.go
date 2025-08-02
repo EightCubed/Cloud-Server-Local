@@ -52,6 +52,7 @@ func main() {
 		finalPath := filepath.Join(storageRoot, cleanPath)
 		log.Println("Serving file:", finalPath)
 
+		w.Header().Set("Cache-Control", "public, max-age=86400")
 		http.ServeFile(w, r, finalPath)
 	}).Methods("GET")
 
