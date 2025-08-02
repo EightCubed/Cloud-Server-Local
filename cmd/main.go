@@ -55,7 +55,7 @@ func main() {
 	}).Methods("GET")
 
 	c := cors.New(cors.Options{
-		AllowedOrigins:   []string{"*"},
+		AllowedOrigins:   []string{"https://eightcubed.site"},
 		AllowCredentials: false,
 		AllowedMethods:   []string{"GET", "POST", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"Content-Type", "Authorization"},
