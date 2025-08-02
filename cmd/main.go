@@ -45,8 +45,8 @@ func main() {
 	api.HandleFunc("/folder/{id:.*}", handler.DownloadFolderHandler).Methods("GET")
 
 	storageRoot := filepath.Join(cfg.PATH_TO_DIRECTORY)
-	r.PathPrefix("/files/").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		path := strings.TrimPrefix(r.URL.Path, "/files/")
+	api.PathPrefix("/files/").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		path := strings.TrimPrefix(r.URL.Path, "/api/files/")
 		cleanPath := filepath.Clean(path)
 
 		finalPath := filepath.Join(storageRoot, cleanPath)
