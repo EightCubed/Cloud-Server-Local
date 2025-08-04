@@ -13,25 +13,22 @@ func (h Handler) UploadHandler(w http.ResponseWriter, r *http.Request) {
 	logger := h.Logger
 	logger.Info("Calling upload handler")
 
-	err := r.ParseMultipartForm(10 << 20)
-	if err != nil {
-		http.Error(w, "Unable to parse multipart form: "+err.Error(), http.StatusBadRequest)
+	contentType := r.Header.Get("Content-Type")
+	if !strings.HasPrefix(contentType, "multipart/form-data") {
+		http.Error(w, "Invalid content type", http.StatusBadRequest)
 		return
 	}
 
-	file, _, err := r.FormFile("file")
+	reader, err := r.MultipartReader()
 	if err != nil {
-		http.Error(w, "Failed to get file: "+err.Error(), http.StatusBadRequest)
+		http.Error(w, "Unable to create multipart reader: "+err.Error(), http.StatusBadRequest)
 		return
 	}
-	defer file.Close()
 
-	destPath := r.FormValue("destPath")
+	destPath := strings.TrimRight(r.URL.Query().Get("destPath"), "/")
 	if destPath == "" {
 		destPath = "Storage"
 	}
-
-	destPath = strings.TrimRight(destPath, "/")
 
 	validatedPath, err := validatePathName(destPath, h.Config)
 	if err != nil {
@@ -39,14 +36,7 @@ func (h Handler) UploadHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	filename := r.FormValue("filename")
-	if filename == "" {
-		http.Error(w, "Filename not specified", http.StatusBadRequest)
-		return
-	}
-
 	absolutePath := returnAbsolutePath(validatedPath, h.Config)
-
 	if _, err := os.ReadDir(absolutePath); err != nil {
 		err = os.Mkdir(absolutePath, 0750)
 		if err != nil {
@@ -55,21 +45,36 @@ func (h Handler) UploadHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	fullFilePath := filepath.Join(absolutePath, filename)
+	for {
+		part, err := reader.NextPart()
+		if err == io.EOF {
+			break
+		}
+		if part.FormName() != "file" {
+			continue
+		}
 
-	dst, err := os.Create(fullFilePath)
-	if err != nil {
-		http.Error(w, "Failed to create file: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-	defer dst.Close()
+		filename := part.FileName()
+		if filename == "" {
+			http.Error(w, "Filename not found in form part", http.StatusBadRequest)
+			return
+		}
 
-	_, err = io.Copy(dst, file)
-	if err != nil {
-		http.Error(w, "Failed to save file: "+err.Error(), http.StatusInternalServerError)
-		return
+		fullPath := filepath.Join(absolutePath, filename)
+		out, err := os.Create(fullPath)
+		if err != nil {
+			http.Error(w, "Failed to create file: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		_, err = io.Copy(out, part) // streams directly to disk
+		out.Close()
+		if err != nil {
+			http.Error(w, "Failed to save file: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
 	}
 
 	w.WriteHeader(http.StatusOK)
-	fmt.Fprintf(w, "File uploaded successfully as %s", fullFilePath)
+	fmt.Fprintf(w, "File uploaded successfully to %s", absolutePath)
 }
